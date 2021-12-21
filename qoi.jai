@@ -76,17 +76,6 @@ qoi_load :: (filename: string) -> (pixels: []u32, width: u32, height: u32, ok: b
     return xx pixels, header.width, header.height, true;
 }
 
-main :: () {
-    pixels, width, height, ok := qoi_load("testcard.qoi");
-    assert(ok);
-    sb : String_Builder;
-    append(*sb, "P3\n");
-    append(*sb, sprint("% %\n", width, height));
-    append(*sb, "255\n");
-    for pixels append(*sb, sprint("% % % ", it&0xFF000000>>24, it&0xFF0000>>16, it&0xFF00>>8));
-    write_entire_file("test.ppm", builder_to_string(*sb));
-}
-
 #scope_file;
 
 Header :: struct {
