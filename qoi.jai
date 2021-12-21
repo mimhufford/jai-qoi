@@ -18,11 +18,10 @@ qoi_load :: (filename: string) {
     px := Pixel.{ a = 255 };
 
     data := read_entire_file(filename);
-
     header := parse_header(*data);
-    print("\n\n%\n", header);
 
-    pixels : [..]Pixel; // TODO: prealloc size based on header
+    pixels : [..]Pixel;
+    array_reserve(*pixels, header.width * header.height);
 
     while pixels.count < header.width * header.height
     {
