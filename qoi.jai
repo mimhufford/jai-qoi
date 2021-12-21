@@ -90,11 +90,11 @@ main :: () {
 #scope_file;
 
 Header :: struct {
-    width: u32;  #place width;  w:[4]u8; // image width in pixels (BE)
-    height: u32; #place height; h:[4]u8; // image height in pixels (BE)
-    channels: u8; // 3 = RGB, 4 = RGBA
-    colorspace: u8; // 0 = sRGB with linear alpha
-}                   // 1 = all channels linear
+    width: u32;     // image width in pixels (BE)
+    height: u32;    // image height in pixels (BE)
+    channels: u8;   // 3 = RGB, 4 = RGBA
+    colorspace: u8; // 0 = sRGB with linear alpha, 1 = all channels linear
+}
 
 Pixel :: struct {
     a, b, g, r : u8;
@@ -118,16 +118,16 @@ parse_header :: (stream: *string) -> Header, bool {
     if stream.data[3] != #char "f" return header, false;
     advance(stream, 4);
 
-    w[0] = stream.data[3];
-    w[1] = stream.data[2];
-    w[2] = stream.data[1];
-    w[3] = stream.data[0];
+    width |= (cast(u32)stream.data[0]) << 24;
+    width |= (cast(u32)stream.data[1]) << 16;
+    width |= (cast(u32)stream.data[2]) << 8;
+    width |= (cast(u32)stream.data[3]) << 0;
     advance(stream, 4);
 
-    h[0] = stream.data[3];
-    h[1] = stream.data[2];
-    h[2] = stream.data[1];
-    h[3] = stream.data[0];
+    height |= (cast(u32)stream.data[0]) << 24;
+    height |= (cast(u32)stream.data[1]) << 16;
+    height |= (cast(u32)stream.data[2]) << 8;
+    height |= (cast(u32)stream.data[3]) << 0;
     advance(stream, 4);
 
     channels = stream.data[0];
