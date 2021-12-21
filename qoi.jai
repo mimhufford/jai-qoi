@@ -7,13 +7,10 @@ Header :: struct {
 }                   // 1 = all channels linear
 
 Pixel :: struct {
-    r: u8;
-    g: u8;
-    b: u8;
-    a: u8;
+    a, b, g, r : u8;
 }
 
-qoi_load :: (filename: string) {
+qoi_load :: (filename: string) -> (pixels: []u32, width: u32, height: u32, ok: bool) {
     seen : [64]Pixel;
     px := Pixel.{ a = 255 };
 
@@ -34,8 +31,7 @@ qoi_load :: (filename: string) {
             px.a = 255;
             advance(*data, 4);
             array_add(*pixels, px);
-            index := (px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11) % 64;
-            seen[index] = px;
+            seen[(px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11) % 64] = px;
         } 
         else if chunk_type == QOI_OP_RGBA {
             px.r = data[1];
@@ -44,8 +40,7 @@ qoi_load :: (filename: string) {
             px.a = data[4];
             advance(*data, 5);
             array_add(*pixels, px);
-            index := (px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11) % 64;
-            seen[index] = px;
+            seen[(px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11) % 64] = px;
         } 
         else if chunk_type & 0b11000000 == QOI_OP_INDEX {
             index := data[0] & 0b00111111;
@@ -62,11 +57,10 @@ qoi_load :: (filename: string) {
             px.g = cast(u8)((cast(s16)px.g + dg + 256) % 256);
             px.b = cast(u8)((cast(s16)px.b + db + 256) % 256);
             array_add(*pixels, px);
-            index := (px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11) % 64;
-            seen[index] = px;
+            seen[(px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11) % 64] = px;
         } 
         else if chunk_type & 0b11000000 == QOI_OP_LUMA {
-            dg := cast(s8)(data[0] & 0b00111111) - 32;
+            dg := cast(s8)(data[0] & 0b00111111) >> 0 - 32;
             dr := cast(s8)(data[1] & 0b11110000) >> 4 - 8;
             db := cast(s8)(data[1] & 0b00001111) >> 0 - 8;
             advance(*data, 2);
@@ -74,8 +68,7 @@ qoi_load :: (filename: string) {
             px.r = cast(u8)((cast(s16)px.r + dg + dr + 256) % 256);
             px.b = cast(u8)((cast(s16)px.b + dg + db + 256) % 256);
             array_add(*pixels, px);
-            index := (px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11) % 64;
-            seen[index] = px;
+            seen[(px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11) % 64] = px;
         } 
         else if chunk_type & 0b11000000 == QOI_OP_RUN {
             length := data[0] & 0b00111111;
@@ -83,23 +76,27 @@ qoi_load :: (filename: string) {
             advance(*data, 1);
         }
         else {
-            print("unknown chunk type\n");
-            print("%\n", data[0]);
-            assert(false);
+            return .[], 0, 0, false;
         }
     }
 
-    // TODO check for 7 0x00 and 1 0x01 bytes
+    if data.count != 8         return .[], 0, 0, false;
+    for 0..6 if data[it] != 0  return .[], 0, 0, false;
+    if data[7] != 1            return .[], 0, 0, false;
 
-    sb : String_Builder;
-    append(*sb, "P3\n");
-    append(*sb, sprint("% %\n", header.width, header.height));
-    append(*sb, "255\n");
-    for pixels append(*sb, sprint("% % % ", it.r, it.g, it.b));
-    write_entire_file("test.ppm", builder_to_string(*sb));
+    return xx pixels, header.width, header.height, true;
 }
 
-main :: () { qoi_load("testcard.qoi"); }
+main :: () {
+    pixels, width, height, ok := qoi_load("testcard.qoi");
+    assert(ok);
+    sb : String_Builder;
+    append(*sb, "P3\n");
+    append(*sb, sprint("% %\n", width, height));
+    append(*sb, "255\n");
+    for pixels append(*sb, sprint("% % % ", it&0xFF000000>>24, it&0xFF0000>>16, it&0xFF00>>8));
+    write_entire_file("test.ppm", builder_to_string(*sb));
+}
 
 #scope_file;
 
