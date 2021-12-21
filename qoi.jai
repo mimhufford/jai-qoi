@@ -15,7 +15,7 @@ Pixel :: struct {
 
 qoi_load :: (filename: string) {
     seen : [64]Pixel;
-    prev := Pixel.{ a = 255 };
+    px := Pixel.{ a = 255 };
 
     data := read_entire_file(filename);
 
@@ -29,59 +29,51 @@ qoi_load :: (filename: string) {
         chunk_type := data[0];
 
         if chunk_type == QOI_OP_RGB {
-            next := Pixel.{ a = 255 };
-            next.r = data[1];
-            next.g = data[2];
-            next.b = data[3];
+            px.r = data[1];
+            px.g = data[2];
+            px.b = data[3];
+            px.a = 255;
             advance(*data, 4);
-            array_add(*pixels, next);
-            prev = next;
-            index := (next.r * 3 + next.g * 5 + next.b * 7 + next.a * 11) % 64;
-            seen[index] = next;
+            array_add(*pixels, px);
+            index := (px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11) % 64;
+            seen[index] = px;
         } 
         else if chunk_type == QOI_OP_RGBA {
-            next : Pixel = ---;
-            next.r = data[1];
-            next.g = data[2];
-            next.b = data[3];
-            next.a = data[4];
+            px.r = data[1];
+            px.g = data[2];
+            px.b = data[3];
+            px.a = data[4];
             advance(*data, 5);
-            array_add(*pixels, next);
-            prev = next;
-            index := (next.r * 3 + next.g * 5 + next.b * 7 + next.a * 11) % 64;
-            seen[index] = next;
+            array_add(*pixels, px);
+            index := (px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11) % 64;
+            seen[index] = px;
         } 
         else if chunk_type & 0b11000000 == QOI_OP_INDEX {
             index := data[0] & 0b00111111;
             advance(*data, 1);
-            next := seen[index];
-            array_add(*pixels, next);
-            prev = next;
+            px = seen[index];
+            array_add(*pixels, px);
         } 
         else if chunk_type & 0b11000000 == QOI_OP_DIFF {
             dr := cast(s8)(data[0] & 0b00110000) >> 4 - 2;
             dg := cast(s8)(data[0] & 0b00001100) >> 2 - 2;
             db := cast(s8)(data[0] & 0b00000011) >> 0 - 2;
             advance(*data, 1);
-            next := prev;
-            next.r = cast(u8)((cast(s16)next.r + dr + 256) % 256);
-            next.g = cast(u8)((cast(s16)next.g + dg + 256) % 256);
-            next.b = cast(u8)((cast(s16)next.b + db + 256) % 256);
-            array_add(*pixels, next);
-            prev = next;
-            index := (next.r * 3 + next.g * 5 + next.b * 7 + next.a * 11) % 64;
-            seen[index] = next;
+            px.r = cast(u8)((cast(s16)px.r + dr + 256) % 256);
+            px.g = cast(u8)((cast(s16)px.g + dg + 256) % 256);
+            px.b = cast(u8)((cast(s16)px.b + db + 256) % 256);
+            array_add(*pixels, px);
+            index := (px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11) % 64;
+            seen[index] = px;
         } 
         else if chunk_type & 0b11000000 == QOI_OP_LUMA {
-            print("TODO: QOI_OP_LUMA - just adding black for now\n");
-            next : Pixel;
-            array_add(*pixels, next);
-            prev = next;
+            print("TODO: QOI_OP_LUMA - just adding prev pixel for now\n");
+            array_add(*pixels, px);
             advance(*data, 2);
         } 
         else if chunk_type & 0b11000000 == QOI_OP_RUN {
             length := data[0] & 0b00111111;
-            for 0..length array_add(*pixels, prev);
+            for 0..length array_add(*pixels, px);
             advance(*data, 1);
         }
         else {
