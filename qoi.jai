@@ -1,21 +1,10 @@
-Header :: struct {
-    magic: [4]u8; // magic bytes "qoif"
-    width: u32;  #place width;  w:[4]u8; // image width in pixels (BE)
-    height: u32; #place height; h:[4]u8; // image height in pixels (BE)
-    channels: u8; // 3 = RGB, 4 = RGBA
-    colorspace: u8; // 0 = sRGB with linear alpha
-}                   // 1 = all channels linear
-
-Pixel :: struct {
-    a, b, g, r : u8;
-}
-
 qoi_load :: (filename: string) -> (pixels: []u32, width: u32, height: u32, ok: bool) {
     seen : [64]Pixel;
     px := Pixel.{ a = 255 };
 
     data := read_entire_file(filename);
-    header := parse_header(*data);
+    header, ok := parse_header(*data);
+    if !ok return .[], 0, 0, false;
 
     pixels : [..]Pixel;
     array_reserve(*pixels, header.width * header.height);
@@ -100,6 +89,17 @@ main :: () {
 
 #scope_file;
 
+Header :: struct {
+    width: u32;  #place width;  w:[4]u8; // image width in pixels (BE)
+    height: u32; #place height; h:[4]u8; // image height in pixels (BE)
+    channels: u8; // 3 = RGB, 4 = RGBA
+    colorspace: u8; // 0 = sRGB with linear alpha
+}                   // 1 = all channels linear
+
+Pixel :: struct {
+    a, b, g, r : u8;
+}
+
 QOI_OP_RGB   :: 0b11111110;
 QOI_OP_RGBA  :: 0b11111111;
 QOI_OP_INDEX :: 0b00000000;
@@ -107,35 +107,39 @@ QOI_OP_DIFF  :: 0b01000000;
 QOI_OP_LUMA  :: 0b10000000;
 QOI_OP_RUN   :: 0b11000000;
 
-parse_header :: (stream: *string) -> Header {
-    header: Header;
-    header.magic[0] = stream.data[0];
-    header.magic[1] = stream.data[1];
-    header.magic[2] = stream.data[2];
-    header.magic[3] = stream.data[3];
+parse_header :: (stream: *string) -> Header, bool {
+    using header: Header;
+
+    if stream.count < 12 return header, false;
+    
+    if stream.data[0] != #char "q" return header, false;
+    if stream.data[1] != #char "o" return header, false;
+    if stream.data[2] != #char "i" return header, false;
+    if stream.data[3] != #char "f" return header, false;
     advance(stream, 4);
 
-    header.w[0] = stream.data[3];
-    header.w[1] = stream.data[2];
-    header.w[2] = stream.data[1];
-    header.w[3] = stream.data[0];
+    w[0] = stream.data[3];
+    w[1] = stream.data[2];
+    w[2] = stream.data[1];
+    w[3] = stream.data[0];
     advance(stream, 4);
 
-    header.h[0] = stream.data[3];
-    header.h[1] = stream.data[2];
-    header.h[2] = stream.data[1];
-    header.h[3] = stream.data[0];
+    h[0] = stream.data[3];
+    h[1] = stream.data[2];
+    h[2] = stream.data[1];
+    h[3] = stream.data[0];
     advance(stream, 4);
 
-    header.channels = stream.data[0];
+    channels = stream.data[0];
+    if channels != 3 && channels != 4 return header, false;
     advance(stream, 1);
 
-    header.colorspace = stream.data[0];
+    colorspace = stream.data[0];
+    if colorspace != 0 && colorspace != 1 return header, false;
     advance(stream, 1);
 
-    return header;
+    return header, true;
 }
 
 #import "File";
 #import "Basic";
-#import "Bit_Operations";
