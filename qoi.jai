@@ -40,7 +40,16 @@ qoi_load :: (filename: string) {
             seen[index] = next;
         } 
         else if chunk_type == QOI_OP_RGBA {
-            assert(false);
+            next : Pixel = ---;
+            next.r = data[1];
+            next.g = data[2];
+            next.b = data[3];
+            next.a = data[4];
+            advance(*data, 5);
+            array_add(*pixels, next);
+            prev = next;
+            index := (next.r * 3 + next.g * 5 + next.b * 7 + next.a * 11) % 64;
+            seen[index] = next;
         } 
         else if chunk_type & 0b11000000 == QOI_OP_INDEX {
             index := data[0] & 0b00111111;
