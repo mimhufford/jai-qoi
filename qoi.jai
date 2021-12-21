@@ -67,9 +67,16 @@ qoi_load :: (filename: string) {
             seen[index] = px;
         } 
         else if chunk_type & 0b11000000 == QOI_OP_LUMA {
-            print("TODO: QOI_OP_LUMA - just adding prev pixel for now\n");
-            array_add(*pixels, px);
+            dg := cast(s8)(data[0] & 0b00111111) - 32;
+            dr := cast(s8)(data[1] & 0b11110000) >> 4 - 8;
+            db := cast(s8)(data[1] & 0b00001111) >> 0 - 8;
             advance(*data, 2);
+            px.g = cast(u8)((cast(s16)px.g + dg      + 256) % 256);
+            px.r = cast(u8)((cast(s16)px.r + dg + dr + 256) % 256);
+            px.b = cast(u8)((cast(s16)px.b + dg + db + 256) % 256);
+            array_add(*pixels, px);
+            index := (px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11) % 64;
+            seen[index] = px;
         } 
         else if chunk_type & 0b11000000 == QOI_OP_RUN {
             length := data[0] & 0b00111111;
